@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: ${{ (github.event.review.state == 'approved') }}
+    if: ${{ (github.event.review.state != 'approved') }}
     # TODO: figure out how to omit self-approvals where github.event.reviewed.user == author of PR.
     steps:
       - name: "Set authorized label"
