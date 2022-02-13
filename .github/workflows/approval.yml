@@ -1,0 +1,22 @@
+name: PR approved
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: ${{ (github.event.review.state == 'approved') }}
+    # TODO: figure out how to omit self-approvals where github.event.reviewed.user == author of PR.
+    steps:
+      - name: "Set authorized label"
+        uses: actions/github-script@v3
+        with:
+          script: |
+            github.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: [ 'authorized' ]
+            })
