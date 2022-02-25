@@ -15,7 +15,7 @@ jobs:
         run: go build ./...
 
       - name: run-a-bot
-        run: ./tbr-audit --org="tailscale" --bugrepo="corp" --repos="corp,tailscale"
+        run: ./tbr-audit --actor=tbr-bot --org="tailscale" --bugrepo="corp" --repos="corp,tailscale"
         env:
           GH_APP_ID: ${{ secrets.GH_APP_ID }}
           GH_APP_INSTALL_ID: ${{ secrets.GH_APP_INSTALL_ID }}
