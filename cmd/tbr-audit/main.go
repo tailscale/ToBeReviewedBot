@@ -13,7 +13,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -28,7 +27,7 @@ import (
 type githubInfo struct {
 	org     string
 	bugrepo string
-	actor   string
+	appname string
 }
 
 func mustInt64(env string) int64 {
@@ -66,7 +65,7 @@ func fileFollowupIssue(ctx context.Context, client *github.Client, repo string, 
 
 	// all of the followup issues are in corp, no matter the repo of the submitted PR
 	check := fmt.Sprintf("%s in:title repo:%s/%s author:app/%s", title, args.org,
-		args.bugrepo, args.actor)
+		args.bugrepo, args.appname)
 	followup, _, err := client.Search.Issues(ctx, check, &github.SearchOptions{
 		ListOptions: github.ListOptions{PerPage: 10}})
 	if err != nil {
@@ -195,15 +194,19 @@ func checkForToBeReviewed(client *github.Client, repo string, args githubInfo) {
 
 func main() {
 	var args githubInfo
-	flag.StringVar(&args.org, "org", "example-github-organization", "GitHub organization to use")
-	flag.StringVar(&args.bugrepo, "bugrepo", "ToBeReviewedBot", "name of repository to file followup issues in")
-	flag.StringVar(&args.actor, "actor", "actor", "The AppSlug of the GH App running the bot")
-	repos := flag.String("repos", "example-github-repo",
-		"comma-separated list of GitHub repositories to check for to-be-reviewed PRs")
-	flag.Parse()
+	args.org = os.Getenv("TBRBOT_ORG")         // GitHub organization to use
+	args.bugrepo = os.Getenv("TBRBOT_BUGREPO") // name of repository to file followup issues in
+	args.appname = os.Getenv("TBRBOT_APPNAME") // The AppSlug of the GH App running the bot
+
+	// comma-separated list of GitHub repositories to check for to-be-reviewed PRs
+	repos := os.Getenv("TBRBOT_REPOLIST")
+
+	if args.org == "" || args.bugrepo == "" || args.appname == "" || repos == "" {
+		log.Fatal("TBRBOT_ORG, TBRBOT_BUGREPO, TBRBOT_APPNAME, and TBRBOT_REPOLIST must be set as repository secrets for Actions runners")
+	}
 
 	client := getGithubApiClient()
-	for _, repo := range strings.Split(*repos, ",") {
+	for _, repo := range strings.Split(repos, ",") {
 		checkForToBeReviewed(client, repo, args)
 	}
 }

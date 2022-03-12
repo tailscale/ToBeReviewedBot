@@ -2,7 +2,7 @@ name: To-Be-Reviewed Bot
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/10 * * * *'
 
 jobs:
   bot:
@@ -15,8 +15,12 @@ jobs:
         run: go build ./...
 
       - name: run-a-bot
-        run: ./tbr-audit --actor=tbr-bot --org="tailscale" --bugrepo="corp" --repos="corp,tailscale"
+        run: ./tbr-audit
         env:
           GH_APP_ID: ${{ secrets.GH_APP_ID }}
           GH_APP_INSTALL_ID: ${{ secrets.GH_APP_INSTALL_ID }}
           GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          TBRBOT_ORG: ${{ secrets.TBRBOT_ORG }}
+          TBRBOT_BUGREPO: ${{ secrets.TBRBOT_BUGREPO }}
+          TBRBOT_APPNAME: ${{ secrets.TBRBOT_APPNAME }}
+          TBRBOT_REPOLIST: ${{ secrets.TBRBOT_REPOLIST }}
