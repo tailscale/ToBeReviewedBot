@@ -2,7 +2,7 @@ name: To-Be-Reviewed Bot
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/30 * * * *'
 
 jobs:
   bot:
