@@ -121,6 +121,7 @@ func checkForToBeReviewed(client *github.Client, repo string, args githubInfo) {
 		Approved  bool
 		Submitted bool
 		Author    string
+		MergedBy  string
 	}
 	pulls := make(map[int]*PullRequestState, 50)
 
@@ -150,6 +151,9 @@ func checkForToBeReviewed(client *github.Client, repo string, args githubInfo) {
 					pulls[prNum] = &PullRequestState{}
 				}
 				pulls[prNum].Author = *payload.PullRequest.User.Login
+				if payload.PullRequest.MergedBy != nil {
+					pulls[prNum].MergedBy = *payload.PullRequest.MergedBy.Login
+				}
 				if strings.EqualFold(*payload.Action, "closed") &&
 					*payload.PullRequest.Merged {
 					pulls[prNum].Submitted = true
@@ -167,6 +171,9 @@ func checkForToBeReviewed(client *github.Client, repo string, args githubInfo) {
 					pulls[prNum] = &PullRequestState{}
 				}
 				pulls[prNum].Author = *payload.PullRequest.User.Login
+				if payload.PullRequest.MergedBy != nil {
+					pulls[prNum].MergedBy = *payload.PullRequest.MergedBy.Login
+				}
 				if strings.EqualFold(*payload.Review.State, "approved") {
 					pulls[prNum].Approved = true
 				}
@@ -183,6 +190,11 @@ func checkForToBeReviewed(client *github.Client, repo string, args githubInfo) {
 		if pr.Submitted && !pr.Approved {
 			// for dependabot, our policy is that merging the PR is Approval.
 			if pr.Author == "dependabot[bot]" {
+				continue
+			}
+
+			// merging someone else's PR indicates approval of that PR.
+			if pr.MergedBy != "" && pr.Author != pr.MergedBy {
 				continue
 			}
 
