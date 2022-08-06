@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// tbr-audit is a Github action which will walk through recently merged
+// tbr-audit is a Github app which will walk through recently merged
 // pull requests from a GitHub repository and validate that at least one
 // reviewer approved them. If a Pull Request was merged without a reviewer,
 // a GitHub issue will be filed requesting a followup review.
 //
-// This bot is intended to provide a control for SOC2 CC 5.2-04 while
-// allowing to-be-reviewed changes to be submitted.
+// This bot is intended to provide a control for SOC2 while allowing
+// to-be-reviewed changes to be submitted.
 package main
 
 import (
@@ -22,6 +22,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v42/github"
+	"go4.org/mem"
 )
 
 type githubInfo struct {
@@ -104,6 +105,11 @@ func wasPrEverApproved(client *github.Client, repo string, args githubInfo, prNu
 		for _, review := range reviews {
 			if strings.EqualFold(*review.State, "approved") {
 				return true
+			}
+			if review.Body != nil {
+				if mem.ContainsFold(mem.S(*review.Body), mem.S("LGTM")) {
+					return true
+				}
 			}
 		}
 
