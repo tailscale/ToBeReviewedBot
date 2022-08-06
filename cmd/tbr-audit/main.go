@@ -12,32 +12,43 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"expvar"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v42/github"
+	"github.com/google/go-github/v45/github"
 	"go4.org/mem"
+	"tailscale.com/tsweb"
 )
+
+var (
+	reposChecked   = expvar.NewInt("tbrbot_repos_checked")
+	totalWakeups   = expvar.NewInt("tbrbot_total_wakeups")
+	webhookWakeups = expvar.NewInt("tbrbot_webhook_wakeups")
+)
+var wakeBot chan int
+var gitHubWebhookSecret []byte
 
 type githubInfo struct {
 	org     string
 	bugrepo string
 	appname string
-}
+	repos   string
+	port    int
 
-func mustInt64(env string) int64 {
-	i, err := strconv.ParseInt(os.Getenv(env), 10, 64)
-	if err != nil {
-		log.Fatalf("Invalid %s environment variable, must be integer", env)
-	}
-
-	return i
+	// secrets
+	appId         int64
+	appInstall    int64
+	appPrivateKey []byte
 }
 
 // Return an HTTP client suitable to use with the GitHub API, initialized with
@@ -47,12 +58,9 @@ func mustInt64(env string) int64 {
 // https://github.com/organizations/<name>/settings/installations
 // This gives it permission to access private repos without using an individual's
 // Personal Access Token.
-func getGithubApiClient() *github.Client {
-	appID := mustInt64("GH_APP_ID")
-	appInstall := mustInt64("GH_APP_INSTALL_ID")
-	key := []byte(os.Getenv("GH_APP_PRIVATE_KEY"))
-
-	itr, err := ghinstallation.New(http.DefaultTransport, appID, appInstall, key)
+func getGithubApiClient(args githubInfo) *github.Client {
+	itr, err := ghinstallation.New(http.DefaultTransport, args.appId,
+		args.appInstall, args.appPrivateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -64,7 +72,7 @@ func fileFollowupIssue(ctx context.Context, client *github.Client, repo string, 
 	prNum int) error {
 	title := fmt.Sprintf("TBR %s/%s/pull/%d followup review", args.org, repo, prNum)
 
-	// all of the followup issues are in corp, no matter the repo of the submitted PR
+	// all of the followup issues are in the bugrepo, no matter the repo of the submitted PR
 	check := fmt.Sprintf("%s in:title repo:%s/%s author:app/%s", title, args.org,
 		args.bugrepo, args.appname)
 	followup, _, err := client.Search.Issues(ctx, check, &github.SearchOptions{
@@ -218,21 +226,124 @@ func checkForToBeReviewed(client *github.Client, repo string, args githubInfo) {
 	}
 }
 
-func main() {
+func handleWebhook(w http.ResponseWriter, r *http.Request) {
+	payload, err := github.ValidatePayload(r, gitHubWebhookSecret)
+	if err != nil {
+		log.Printf("error validating request body: err=%s\n", err)
+		return
+	}
+	defer r.Body.Close()
+
+	event, err := github.ParseWebHook(github.WebHookType(r), payload)
+	if err != nil {
+		log.Printf("could not parse webhook: err=%s\n", err)
+		return
+	}
+	_ = event
+
+	switch event.(type) {
+	case *github.PullRequestReviewEvent:
+	case *github.PullRequestEvent:
+
+	default:
+		// not something we need to respond to
+		return
+	}
+
+	select {
+	case wakeBot <- 1:
+	default:
+		// Somebody else already woke the bot. Just return.
+	}
+}
+
+func processArgs() githubInfo {
 	var args githubInfo
-	args.org = os.Getenv("TBRBOT_ORG")         // GitHub organization to use
-	args.bugrepo = os.Getenv("TBRBOT_BUGREPO") // name of repository to file followup issues in
-	args.appname = os.Getenv("TBRBOT_APPNAME") // The AppSlug of the GH App running the bot
+	flag.StringVar(&args.org, "org", "", "GitHub organization to use")
+	flag.StringVar(&args.bugrepo, "bugrepo", "", "name of repository to file followup issues in")
+	flag.StringVar(&args.appname, "appname", "", "the AppSlug of the GitHub App running the bot")
+	flag.Int64Var(&args.appId, "appid", -1, "the AppID of the GitHub App running the bot")
+	flag.Int64Var(&args.appInstall, "appinstall", -1, "the App Install ID of the GitHub App running the bot")
+	appPrivateKeyFile := flag.String("keyfile", "", "PEM file holding GitHub App private key")
 
-	// comma-separated list of GitHub repositories to check for to-be-reviewed PRs
-	repos := os.Getenv("TBRBOT_REPOLIST")
+	webhookSecretFile := flag.String("webhook_secret_file", "", "file holding Webhook secret")
 
-	if args.org == "" || args.bugrepo == "" || args.appname == "" || repos == "" {
-		log.Fatal("TBRBOT_ORG, TBRBOT_BUGREPO, TBRBOT_APPNAME, and TBRBOT_REPOLIST must be set as repository secrets for Actions runners")
+	flag.StringVar(&args.repos, "repos", "",
+		"comma-separated list of GitHub repositories to check for to-be-reviewed PRs")
+	flag.IntVar(&args.port, "port", 10777, "Port number to listen for webhooks and prometheus")
+
+	flag.Parse()
+
+	if args.org == "" || args.bugrepo == "" || args.appname == "" || args.appId < 0 || args.appInstall < 0 || *appPrivateKeyFile == "" {
+		log.Fatal("--org, --bugrepo, --appname, --appid, --appinstall, and --keyfile are required arguments")
+	}
+	if args.repos == "" {
+		log.Print("WARNING: no --repos argument, no GitHub repositories are being monitored")
 	}
 
-	client := getGithubApiClient()
-	for _, repo := range strings.Split(repos, ",") {
-		checkForToBeReviewed(client, repo, args)
+	var err error
+	args.appPrivateKey, err = os.ReadFile(*appPrivateKeyFile)
+	if err != nil {
+		log.Fatal("Unable to read keyfile %q: %v", appPrivateKeyFile, err)
 	}
+
+	if *webhookSecretFile != "" {
+		buf, err := os.ReadFile(*webhookSecretFile)
+		if err != nil {
+			log.Fatal("Unable to read webhook secret file %q: %v", *webhookSecretFile, err)
+		}
+		gitHubWebhookSecret = bytes.TrimRight(buf, "\n")
+	}
+
+	return args
+}
+
+func mainLoop(args githubInfo) {
+	ticker := time.NewTicker(1 * time.Hour)
+	client := getGithubApiClient(args)
+
+	for {
+		totalWakeups.Add(1)
+
+		// check for to-be-reviewed PRs once at startup,
+		// and then whenever something wakes us up.
+		for _, repo := range strings.Split(args.repos, ",") {
+			reposChecked.Add(1)
+			checkForToBeReviewed(client, repo, args)
+		}
+
+		select {
+		case <-ticker.C:
+			log.Print("Periodic check of repositories for TBR submissions.")
+		case <-wakeBot:
+			// A webhook will wake the bot immediately after submission. We pause
+			// a generous amount of time before checking, for two reasons:
+			// 1. If they realize they didn't have an approval, give them a few
+			//    minutes to find someone to review it. An Approval or LGTM comment
+			//    added before the bot runs will suffice.
+			// 2. If someone submits and didn't even realize there was no approval,
+			//    it is disconcerting to have the bot file an issue the instant one's
+			//    finger lifts from the mouse button. Wait a decent interval before
+			//    proceeding.
+			log.Print("Webhook notification received, pausing before checking repositories.")
+			time.Sleep(5 * time.Minute)
+			webhookWakeups.Add(1)
+		}
+	}
+}
+
+func main() {
+	args := processArgs()
+	wakeBot = make(chan int)
+
+	go mainLoop(args)
+
+	mux := http.NewServeMux()
+	tsweb.Debugger(mux)
+	mux.HandleFunc("/webhook", handleWebhook)
+	srv := &http.Server{
+		Addr:    ":" + strconv.Itoa(args.port),
+		Handler: mux,
+	}
+	log.Fatal(srv.ListenAndServe())
 }
