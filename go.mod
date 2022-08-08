@@ -1,4 +1,4 @@
-module github.com/tailscale/tbr-audit
+module github.com/tailscale/ToBeReviewedBot
 
 go 1.19
 

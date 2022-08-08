@@ -1,0 +1,55 @@
+# Manually:
+#   $ flyctl volumes create tbrbot_data --region sjc --size 1
+#   $ flyctl scale count 1
+#   $ flyctl secrets set TS_AUTHKEY=... TBRBOT_APP_ID=... TBRBOT_APP_INSTALL=...
+#   $ flyctl secrets set TBRBOT_WEBHOOK_SECRET=...
+#   $ flyctl secrets set TBRBOT_APP_PRIVATE_KEY=- < pem
+#   $ flyctl ips allocate-v6
+
+app = "example-tbrbot"
+kill_signal = "SIGINT"
+kill_timeout = 5
+processes = []
+
+[build]
+  image = "registry.fly.io/ts-tbrbot:latest"
+
+[env]
+  TBRBOT_APPNAME = "tbr-bot"
+  TBRBOT_BUGREPO = "private"
+  TBRBOT_ORG = "my-organization"
+  TBRBOT_REPOS = "private,opensource"
+
+[experimental]
+  allowed_public_ports = []
+  auto_rollback = true
+
+[mounts]
+  destination = "/root"
+  source = "tbrbot_data"
+
+[[services]]
+  http_checks = []
+  internal_port = 8080
+  processes = ["app"]
+  protocol = "tcp"
+  script_checks = []
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.tcp_checks]]
+    grace_period = "1s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"

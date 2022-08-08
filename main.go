@@ -12,10 +12,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"expvar"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -259,41 +257,33 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 func processArgs() githubInfo {
 	var args githubInfo
-	flag.StringVar(&args.org, "org", "", "GitHub organization to use")
-	flag.StringVar(&args.bugrepo, "bugrepo", "", "name of repository to file followup issues in")
-	flag.StringVar(&args.appname, "appname", "", "the AppSlug of the GitHub App running the bot")
-	flag.Int64Var(&args.appId, "appid", -1, "the AppID of the GitHub App running the bot")
-	flag.Int64Var(&args.appInstall, "appinstall", -1, "the App Install ID of the GitHub App running the bot")
-	appPrivateKeyFile := flag.String("keyfile", "", "PEM file holding GitHub App private key")
+	args.org = os.Getenv("TBRBOT_ORG")
+	args.bugrepo = os.Getenv("TBRBOT_BUGREPO")
+	args.appname = os.Getenv("TBRBOT_APPNAME")
+	appIdString := os.Getenv("TBRBOT_APP_ID")
+	appInstallString := os.Getenv("TBRBOT_APP_INSTALL")
+	args.repos = os.Getenv("TBRBOT_REPOS")
 
-	webhookSecretFile := flag.String("webhook_secret_file", "", "file holding Webhook secret")
-
-	flag.StringVar(&args.repos, "repos", "",
-		"comma-separated list of GitHub repositories to check for to-be-reviewed PRs")
-	flag.IntVar(&args.port, "port", 10777, "Port number to listen for webhooks and prometheus")
-
-	flag.Parse()
-
-	if args.org == "" || args.bugrepo == "" || args.appname == "" || args.appId < 0 || args.appInstall < 0 || *appPrivateKeyFile == "" {
-		log.Fatal("--org, --bugrepo, --appname, --appid, --appinstall, and --keyfile are required arguments")
-	}
-	if args.repos == "" {
-		log.Print("WARNING: no --repos argument, no GitHub repositories are being monitored")
+	if args.org == "" || args.bugrepo == "" || args.appname == "" || appIdString == "" || appInstallString == "" {
+		log.Fatal("TBRBOT_ORG, TBRBOT_BUGREPO, TBRBOT_APPNAME, TBRBOT_APP_ID, and TBRBOT_APP_INSTALL are required environment variables")
 	}
 
 	var err error
-	args.appPrivateKey, err = os.ReadFile(*appPrivateKeyFile)
+	args.appId, err = strconv.ParseInt(appIdString, 10, 64)
 	if err != nil {
-		log.Fatal("Unable to read keyfile %q: %v", appPrivateKeyFile, err)
+		log.Fatal("Cannot parse TBRBOT_APP_ID as integer: %v", appIdString)
+	}
+	args.appInstall, err = strconv.ParseInt(appInstallString, 10, 64)
+	if err != nil {
+		log.Fatal("Cannot parse TBRBOT_APP_INSTALL as integer: %v", appInstallString)
 	}
 
-	if *webhookSecretFile != "" {
-		buf, err := os.ReadFile(*webhookSecretFile)
-		if err != nil {
-			log.Fatal("Unable to read webhook secret file %q: %v", *webhookSecretFile, err)
-		}
-		gitHubWebhookSecret = bytes.TrimRight(buf, "\n")
+	if args.repos == "" {
+		log.Print("WARNING: no TBRBOT_REPOS set, no GitHub repositories are being monitored")
 	}
+
+	args.appPrivateKey = []byte(os.Getenv("TBRBOT_APP_PRIVATE_KEY"))
+	gitHubWebhookSecret = []byte(os.Getenv("WEBHOOK_SECRET"))
 
 	return args
 }
@@ -333,6 +323,7 @@ func mainLoop(args githubInfo) {
 }
 
 func main() {
+	log.Print("ToBeReviewedBot is starting")
 	args := processArgs()
 	wakeBot = make(chan int)
 
@@ -342,7 +333,7 @@ func main() {
 	tsweb.Debugger(mux)
 	mux.HandleFunc("/webhook", handleWebhook)
 	srv := &http.Server{
-		Addr:    ":" + strconv.Itoa(args.port),
+		Addr:    ":8080",
 		Handler: mux,
 	}
 	log.Fatal(srv.ListenAndServe())
