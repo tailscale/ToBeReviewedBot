@@ -5,6 +5,7 @@
 #   $ flyctl secrets set TBRBOT_WEBHOOK_SECRET=...
 #   $ flyctl secrets set TBRBOT_APP_PRIVATE_KEY=- < pem
 #   $ flyctl ips allocate-v6
+#   $ flyctl ips allocate-v4
 
 app = "example-tbrbot"
 kill_signal = "SIGINT"

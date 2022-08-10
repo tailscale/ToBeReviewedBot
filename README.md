@@ -63,8 +63,9 @@ only be accessible via a private tailnet connection.
 
 A metric of interest for monitoring is `tbrbot_repos_checked`, which counts the number of times
 the bot has checked a repository for submitted PRs. This is expected to increment at least once
-per hour.  An alert when `tbrbot_repos_checked` goes N hours with no change is a reasonable way
-to monitor TBR-bot's operation.
+per hour. An alert when `tbrbot_repos_checked` goes N hours with no change is a reasonable way
+to monitor TBR-bot's operation. An example alerting rule for Grafana in a panel for the
+`tbrbot_repos_checked` metric is: `WHEN diff_abs() OF query (A, 12h, now) IS BELOW 1`
 
 
 ### Hosting
@@ -84,6 +85,7 @@ $ flyctl secrets set TS_AUTHKEY=... TBRBOT_APP_ID=... TBRBOT_APP_INSTALL=...
 $ flyctl secrets set TBRBOT_WEBHOOK_SECRET=...
 $ flyctl secrets set TBRBOT_APP_PRIVATE_KEY=- < pem
 $ flyctl ips allocate-v6
+$ flyctl ips allocate-v4
 ```
 
 We recommend using a [one-time authkey with Tags set](https://tailscale.com/blog/acl-tags-ga/) to
