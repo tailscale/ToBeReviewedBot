@@ -38,7 +38,7 @@ be handled by secrets management infrastructure in cloud providers:
 Normally the bot wakes up every hour to check for recently submitted PRs needing
 followup. Its reaction to a submitted PR can be hastened by setting up a 
 [GitHub webhook](https://docs.github.com/en/developers/webhooks-and-events/webhooks/about-webhooks)
-for "Pull request reviews" events.
+for "Pull requests" events (which send on a merged PR).
 
 GitHub should be configured to deliver webhook events to `https://Public-DNS-name/webhook`
 
