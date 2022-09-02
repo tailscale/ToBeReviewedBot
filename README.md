@@ -91,3 +91,11 @@ $ flyctl ips allocate-v4
 We recommend using a [one-time authkey with Tags set](https://tailscale.com/blog/acl-tags-ga/) to
 authorize the bot to join the tailnet. Once the bot has run once and written its state
 to persistent storage, the `TS_AUTHKEY` secret should be removed.
+
+### Contributing
+
+PRs welcome! But please [file bugs](https://github.com/tailscale/ToBeReviewedBot/issues).
+Commit messages should [reference bugs](https://docs.github.com/en/github/writing-on-github/autolinked-references-and-urls).
+
+We require [Developer Certificate of Origin](https://en.wikipedia.org/wiki/Developer_Certificate_of_Origin)
+`Signed-off-by` lines in commits.
