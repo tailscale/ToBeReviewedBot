@@ -146,7 +146,7 @@ func checkForToBeReviewed(client *github.Client, repo string, args githubInfo) {
 	ctx := context.Background()
 	for {
 		// ListRepositoryEvents returns the most recent 300 events, but only
-		// those occuring in the last 90 days. It is recommended this bot be
+		// those occurring in the last 90 days. It is recommended this bot be
 		// run at least once per day and at most every 15 minutes, depending
 		// on how much activity there is, in order to not miss events.
 		events, resp, err := client.Activity.ListRepositoryEvents(ctx, args.org, repo, opt)
