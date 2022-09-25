@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// tbr-audit is a Github app which will walk through recently merged
+// tbr-audit is a GitHub app which will walk through recently merged
 // pull requests from a GitHub repository and validate that at least one
 // reviewer approved them. If a Pull Request was merged without a reviewer,
 // a GitHub issue will be filed requesting a followup review.
@@ -56,7 +56,7 @@ type githubInfo struct {
 // https://github.com/organizations/<name>/settings/installations
 // This gives it permission to access private repos without using an individual's
 // Personal Access Token.
-func getGithubApiClient(args githubInfo) *github.Client {
+func getGitHubApiClient(args githubInfo) *github.Client {
 	itr, err := ghinstallation.New(http.DefaultTransport, args.appId,
 		args.appInstall, args.appPrivateKey)
 	if err != nil {
@@ -295,7 +295,7 @@ func processArgs() githubInfo {
 
 func mainLoop(args githubInfo) {
 	ticker := time.NewTicker(1 * time.Hour)
-	client := getGithubApiClient(args)
+	client := getGitHubApiClient(args)
 
 	for {
 		totalWakeups.Add(1)
