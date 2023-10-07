@@ -117,9 +117,15 @@ func wasPrEverApproved(client *github.Client, repo string, args githubInfo, prNu
 					return true
 				}
 
-                                // https://twitter.com/naomi_lgbt/status/1573462393103192064
+				// https://twitter.com/naomi_lgbt/status/1573462393103192064
 				if mem.ContainsFold(mem.S(*review.Body), mem.S("banger pr")) {
 					return true
+				}
+
+				for _, emoji := range [...]string{"🚢", ":shipit:"} {
+					if mem.EqualFold(mem.S(strings.TrimSpace(*review.Body)), mem.S(emoji)) {
+						return true
+					}
 				}
 			}
 		}
