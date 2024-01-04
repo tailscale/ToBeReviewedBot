@@ -282,11 +282,11 @@ func processArgs() githubInfo {
 	var err error
 	args.appId, err = strconv.ParseInt(appIdString, 10, 64)
 	if err != nil {
-		log.Fatal("Cannot parse TBRBOT_APP_ID as integer: %v", appIdString)
+		log.Fatalf("Cannot parse TBRBOT_APP_ID as integer: %q", appIdString)
 	}
 	args.appInstall, err = strconv.ParseInt(appInstallString, 10, 64)
 	if err != nil {
-		log.Fatal("Cannot parse TBRBOT_APP_INSTALL as integer: %v", appInstallString)
+		log.Fatalf("Cannot parse TBRBOT_APP_INSTALL as integer: %q", appInstallString)
 	}
 
 	if args.repos == "" {
