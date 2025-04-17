@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v71/github"
 	"go4.org/mem"
 	"tailscale.com/tsweb"
 )
