@@ -41,7 +41,6 @@ type githubInfo struct {
 	bugrepo string
 	appname string
 	repos   string
-	port    int
 
 	// secrets
 	appId         int64
