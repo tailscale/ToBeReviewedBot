@@ -1,5 +1,40 @@
 ## ToBeReviewed Bot
 
+> [!WARNING]
+> ToBeReviewedBot is no longer being developed.
+
+TBR Bot was the enforcement arm of an unusual SOC2 control. In general, SOC2 requires review and signoff on code changes
+prior to deployment. We were already doing this, with one exception: we allowed unreviewed changes to be merged in
+emergencies, so that oncall personnel wouldn't have to find someone else to review changes when firefighting in the
+middle of the night.
+
+To make this compatible with SOC2's requirements, we made a policy that such emergency changes require post-submission
+review and signoff within a short timeframe. TBR Bot provided the supporting machinery: whenever a PR gets merged
+without approval, it creates a Github issue that serves as the audit trail for that exception.
+
+This satisfied SOC2 requirements, and there was much rejoicing. But a few years later, we looked again and found that
+the situation had changed:
+
+- Company growth, both in numbers and timezone coverage, made it very unlikely that nobody would be around to review
+  an emergency change prior to merging.
+- Unilateral code changes are a security risk, even if they are "loud" and are scrutinized after the fact. As we grew,
+  it became harder to justify the risk/value tradeoff.
+- Our concern about the lone oncall person at night was empirically unfounded: we never had to use the TBR exception in
+  the situation we envisioned.
+- We had occasional false positives, because this process deliberately doesn't prevent merging without approval.
+  This caused a trickle of false alarms over the years, changes that were unintentionally merged early and caused a
+  small amount of work to document the event for auditors.
+- The TBR mechanism is uncommon, and as such it causes friction in our annual audits. For good reason, auditors have to
+  scrutinize unusual policies and controls more closely, to convince themselves that they meet the certification
+  requirements.
+
+We concluded that our TBR policy had outlived its usefulness. We rewrote our change control policies to always require
+approval prior to merge, and retired TBR Bot.
+
+The original readme is preserved below, for historical interest.
+
+## Overview
+
 The automation in this repository supports a To-Be-Reviewed Pull Request workflow:
 + Allows a repository to enable branch protection and require pull
   requests, but have flexibility in submission of pull requests in
